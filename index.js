@@ -1,10 +1,10 @@
-const { addonBuilder } = require("stremio-addon-sdk");
+const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 const axios = require("axios");
 const cheerio = require("cheerio");
 
 const BASE = "https://www.sxyprn.com";
 
-const manifest = {
+const builder = new addonBuilder({
   id: "org.sxyprn.addon",
   version: "1.0.0",
   name: "SXYPRN",
@@ -18,10 +18,9 @@ const manifest = {
       name: "SXYPRN – Latest"
     }
   ]
-};
+});
 
-const builder = new addonBuilder(manifest);
-
+// Catalog
 builder.defineCatalogHandler(async () => {
   const res = await axios.get(BASE);
   const $ = cheerio.load(res.data);
@@ -46,6 +45,7 @@ builder.defineCatalogHandler(async () => {
   return { metas };
 });
 
+// Meta
 builder.defineMetaHandler(async ({ id }) => {
   const res = await axios.get(BASE + id);
   const $ = cheerio.load(res.data);
@@ -60,6 +60,7 @@ builder.defineMetaHandler(async ({ id }) => {
   };
 });
 
+// Stream
 builder.defineStreamHandler(async ({ id }) => {
   const res = await axios.get(BASE + id);
   const $ = cheerio.load(res.data);
@@ -79,8 +80,7 @@ builder.defineStreamHandler(async ({ id }) => {
   return { streams };
 });
 
-require("http")
-  .createServer(builder.getInterface())
-  .listen(7000, () => {
-    console.log("Addon SXYPRN running at http://localhost:7000/manifest.json");
-  });
+// ✅ Serveur compatible Render
+serveHTTP(builder.getInterface(), {
+  port: process.env.PORT || 7000
+});
