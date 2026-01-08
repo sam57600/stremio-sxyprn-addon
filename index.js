@@ -1,61 +1,105 @@
-const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
+const { addonBuilder } = require("stremio-addon-sdk");
+const axios = require("axios");
+const cheerio = require("cheerio");
+const http = require("http");
 
-const builder = new addonBuilder({
-  id: "org.sxyprn.addon",
+// SITE FICTIF — ÉDUCATIF
+const BASE_URL = "https://www.sxyprn.com";
+
+const manifest = {
+  id: "org.educational.sxyprn",
   version: "1.0.0",
-  name: "SXYPRN Test",
-  description: "Addon Stremio avec catalogue et vidéo test",
+  name: "sxyprn Educational Addon",
+  description: "Educational example of a Stremio addon with HTML parsing",
   resources: ["catalog", "meta", "stream"],
   types: ["movie"],
   catalogs: [
     {
       type: "movie",
-      id: "test_catalog",
-      name: "Catalogue Test"
+      id: "sxyprn_latest",
+      name: "sxyprn – Latest Videos"
     }
   ]
-});
+};
 
-// Catalogue
+const builder = new addonBuilder(manifest);
+
+/**
+ * CATALOG
+ * Simule un scraping HTML d’une page listant des vidéos
+ */
 builder.defineCatalogHandler(async () => {
-  return {
-    metas: [
-      {
-        id: "test_video_1",
+  const res = await axios.get(BASE_URL);
+  const $ = cheerio.load(res.data);
+
+  const metas = [];
+
+  $(".video-item").each((_, el) => {
+    const link = $(el).find("a").attr("href");
+    const title = $(el).find(".title").text();
+    const poster = $(el).find("img").attr("src");
+
+    if (link) {
+      metas.push({
+        id: link,
         type: "movie",
-        name: "Vidéo Test",
-        poster: "https://www.w3schools.com/html/pic_trulli.jpg"
-      }
-    ]
-  };
+        name: title || "Educational Video",
+        poster
+      });
+    }
+  });
+
+  return { metas };
 });
 
-// Meta
+/**
+ * META
+ * Récupère les infos d’une vidéo individuelle
+ */
 builder.defineMetaHandler(async ({ id }) => {
+  const res = await axios.get(BASE_URL + id);
+  const $ = cheerio.load(res.data);
+
   return {
     meta: {
       id,
       type: "movie",
-      name: "Vidéo Test",
-      poster: "https://www.w3schools.com/html/pic_trulli.jpg",
-      description: "Ceci est une vidéo de test pour Stremio"
+      name: $("h1").first().text() || "Educational Video",
+      poster: $("video").attr("poster")
     }
   };
 });
 
-// Stream
+/**
+ * STREAM
+ * Extrait des URLs vidéo directes depuis le HTML
+ */
 builder.defineStreamHandler(async ({ id }) => {
-  return {
-    streams: [
-      {
-        title: "Vidéo Test",
-        url: "https://www.w3schools.com/html/mov_bbb.mp4"
-      }
-    ]
-  };
+  const res = await axios.get(BASE_URL + id);
+  const $ = cheerio.load(res.data);
+
+  const streams = [];
+
+  $("video source").each((_, el) => {
+    const src = $(el).attr("src");
+    const type = $(el).attr("type");
+
+    if (src) {
+      streams.push({
+        title: type || "Direct Video",
+        url: src
+      });
+    }
+  });
+
+  return { streams };
 });
 
-// Serveur compatible Render
-serveHTTP(builder.getInterface(), {
-  port: process.env.PORT || 7000
-});
+/**
+ * SERVEUR HTTP (Render / local)
+ */
+http
+  .createServer(builder.getInterface())
+  .listen(process.env.PORT || 7000, () => {
+    console.log("Educational addon running");
+  });
