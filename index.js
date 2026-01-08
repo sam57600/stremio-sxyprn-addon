@@ -1,86 +1,61 @@
 const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
-const axios = require("axios");
-const cheerio = require("cheerio");
-
-const BASE = "https://www.sxyprn.com";
 
 const builder = new addonBuilder({
   id: "org.sxyprn.addon",
   version: "1.0.0",
-  name: "SXYPRN",
-  description: "Browse and watch videos from sxyprn.com",
+  name: "SXYPRN Test",
+  description: "Addon Stremio avec catalogue et vidéo test",
   resources: ["catalog", "meta", "stream"],
   types: ["movie"],
   catalogs: [
     {
       type: "movie",
-      id: "sxyprn_latest",
-      name: "SXYPRN – Latest"
+      id: "test_catalog",
+      name: "Catalogue Test"
     }
   ]
 });
 
-// Catalog
+// Catalogue
 builder.defineCatalogHandler(async () => {
-  const res = await axios.get(BASE);
-  const $ = cheerio.load(res.data);
-  const metas = [];
-
-  $(".video-item").each((_, el) => {
-    const a = $(el).find("a");
-    const href = a.attr("href");
-    const title = a.attr("title");
-    const poster = $(el).find("img").attr("data-src") || $(el).find("img").attr("src");
-
-    if (href) {
-      metas.push({
-        id: href,
+  return {
+    metas: [
+      {
+        id: "test_video_1",
         type: "movie",
-        name: title || "Video",
-        poster
-      });
-    }
-  });
-
-  return { metas };
+        name: "Vidéo Test",
+        poster: "https://www.w3schools.com/html/pic_trulli.jpg"
+      }
+    ]
+  };
 });
 
 // Meta
 builder.defineMetaHandler(async ({ id }) => {
-  const res = await axios.get(BASE + id);
-  const $ = cheerio.load(res.data);
-
   return {
     meta: {
       id,
       type: "movie",
-      name: $("h1").first().text().trim() || "Video",
-      poster: $("video").attr("poster")
+      name: "Vidéo Test",
+      poster: "https://www.w3schools.com/html/pic_trulli.jpg",
+      description: "Ceci est une vidéo de test pour Stremio"
     }
   };
 });
 
 // Stream
 builder.defineStreamHandler(async ({ id }) => {
-  const res = await axios.get(BASE + id);
-  const $ = cheerio.load(res.data);
-  const streams = [];
-
-  $("video source").each((_, el) => {
-    const src = $(el).attr("src");
-    const type = $(el).attr("type");
-    if (src) {
-      streams.push({
-        title: type || "Video",
-        url: src
-      });
-    }
-  });
-
-  return { streams };
+  return {
+    streams: [
+      {
+        title: "Vidéo Test",
+        url: "https://www.w3schools.com/html/mov_bbb.mp4"
+      }
+    ]
+  };
 });
 
-// ✅ Serveur compatible Render
+// Serveur compatible Render
 serveHTTP(builder.getInterface(), {
   port: process.env.PORT || 7000
 });
